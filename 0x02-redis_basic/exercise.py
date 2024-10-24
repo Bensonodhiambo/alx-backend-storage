@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 This module defines a Cache class that interacts with Redis to store, retrieve, 
-convert, count method calls, and track call history.
+convert, count method calls, track call history, and replay method calls.
 """
 import redis
 import uuid
@@ -67,7 +67,8 @@ def call_history(method: Callable) -> Callable:
 
 class Cache:
     """
-    A Cache class for storing, retrieving, counting method calls, and tracking call history in Redis.
+    A Cache class for storing, retrieving, counting method calls, tracking call history, 
+    and replaying method calls in Redis.
     """
     def __init__(self):
         """
@@ -135,21 +136,40 @@ class Cache:
         return self.get(key, lambda d: int(d))
 
 
+def replay(method: Callable):
+    """
+    Displays the history of calls for a particular Cache method.
+
+    Args:
+        method (Callable): The method to replay.
+
+    Returns:
+        None: Prints the call history of the method.
+    """
+    cache_instance = method.__self__  # Get the Cache instance
+    method_name = method.__qualname__  # Get the method's qualified name
+
+    # Retrieve the inputs and outputs from Redis
+    inputs = cache_instance._redis.lrange(f"{method_name}:inputs", 0, -1)
+    outputs = cache_instance._redis.lrange(f"{method_name}:outputs", 0, -1)
+
+    # Display the replay of the method's calls
+    print(f"{method_name} was called {len(inputs)} times:")
+    for inp, out in zip(inputs, outputs):
+        inp_str = inp.decode("utf-8")  # Convert bytes to string
+        out_str = out.decode("utf-8")  # Convert bytes to string
+        print(f"{method_name}(*{inp_str}) -> {out_str}")
+
+
 # Example usage
 if __name__ == "__main__":
     cache = Cache()
 
     # Storing some data
-    s1 = cache.store("first")
-    print(s1)
-    s2 = cache.store("second")
-    print(s2)
-    s3 = cache.store("third")
-    print(s3)
+    s1 = cache.store("foo")
+    s2 = cache.store("bar")
+    s3 = cache.store(42)
 
-    # Retrieving the history of inputs and outputs
-    inputs = cache._redis.lrange("{}:inputs".format(cache.store.__qualname__), 0, -1)
-    outputs = cache._redis.lrange("{}:outputs".format(cache.store.__qualname__), 0, -1)
+    # Replay the history of the store method
+    replay(cache.store)
 
-    print("inputs: {}".format(inputs))
-    print("outputs: {}".format(outputs))
