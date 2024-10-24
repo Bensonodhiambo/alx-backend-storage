@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-This module defines a Cache class that interacts with Redis to store and retrieve data.
+This module defines a Cache class that interacts with Redis to store, retrieve, and convert data.
 """
 import redis
 import uuid
-from typing import Union
+from typing import Union, Callable, Optional
 
 
 class Cache:
     """
-    A Cache class for storing data in Redis.
+    A Cache class for storing and retrieving data in Redis.
     """
     def __init__(self):
         """
@@ -31,3 +31,23 @@ class Cache:
         key = str(uuid.uuid4())
         self._redis.set(key, data)
         return key
+
+    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
+        """
+        Retrieves data from Redis by key and applies an optional conversion function.
+
+        Args:
+            key (str): The key to retrieve from Redis.
+            fn (Callable, optional): A function to apply to the retrieved data. Defaults to None.
+
+        Returns:
+            Union[str, bytes, int, float, None]: The retrieved data, optionally transformed by fn.
+        """
+        data = self._redis.get(key)
+        if data is None:
+            return None
+        if fn:
+            return fn(data)
+        return data
+
+    def get_str(self
